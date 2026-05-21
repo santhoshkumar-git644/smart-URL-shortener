@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const useragent = require('express-useragent');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const { connectRedis } = require('./config/redis');
 
@@ -16,6 +17,16 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(useragent.express());
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 10 minutes)
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+// Apply rate limiting to all API requests
+app.use('/api', limiter);
 
 // Connect to Databases
 connectDB();

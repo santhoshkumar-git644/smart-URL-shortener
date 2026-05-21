@@ -209,10 +209,24 @@ const getQrCode = async (req, res) => {
   }
 };
 
+// @desc    Get user's URLs
+// @route   GET /api/urls
+// @access  Private
+const getUserUrls = async (req, res) => {
+  try {
+    const urls = await Url.find({ createdBy: req.user.userId }).sort({ createdAt: -1 });
+    res.json(urls);
+  } catch (error) {
+    console.error('Fetch URLs Error:', error);
+    res.status(500).json({ error: 'Server error fetching URLs' });
+  }
+};
+
 module.exports = {
   shortenUrl,
   redirectUrl,
   getAnalytics,
   deleteUrl,
-  getQrCode
+  getQrCode,
+  getUserUrls
 };
