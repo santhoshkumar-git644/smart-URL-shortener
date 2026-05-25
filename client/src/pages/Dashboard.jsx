@@ -5,8 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 
 const Dashboard = () => {
   const [originalUrl, setOriginalUrl] = useState('');
-  const [customAlias, setCustomAlias] = useState('');
-  const [error, setError] = useState('');
+  const [customAlias, setCustomAlias] = useState('');    const [expiresAt, setExpiresAt] = useState('');  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [urls, setUrls] = useState([]);
   const [selectedAnalytics, setSelectedAnalytics] = useState(null);
@@ -30,10 +29,11 @@ const Dashboard = () => {
     setError('');
     setSuccess('');
     try {
-      await api.post('/shorten', { originalUrl, customAlias });
+      await api.post('/shorten', { originalUrl, customAlias, expiresAt: expiresAt || null });
       setSuccess('URL successfully shortened!');
       setOriginalUrl('');
       setCustomAlias('');
+      setExpiresAt('');
       fetchUrls(); // Refresh the list
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to shorten URL');
@@ -117,6 +117,15 @@ const Dashboard = () => {
                   placeholder="my-custom-name"
                   value={customAlias}
                   onChange={(e) => setCustomAlias(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expiration Date (Optional)</label>
+                <input
+                  type="datetime-local"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
                 />
               </div>
               <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-medium">

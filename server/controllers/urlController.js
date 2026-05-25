@@ -105,12 +105,19 @@ const redirectUrl = async (req, res) => {
     }
 
     // 3. Track Analytics (Fire & Forget for speed)
-    const source = req.headers['user-agent'];
-    const ua = useragent.parse(source);
+    const source = req.headers['user-agent'] || '';
+    const ua = req.useragent || {}; // use the middleware parsed info
+    
+    // Process GeoIP
+    const geoip = require('geoip-lite');
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const geo = geoip.lookup(ip) || {};
+    const country = geo.country || 'Unknown';
+    const city = geo.city || 'Unknown';
     
     const analytics = new Analytics({
       shortCode,
-      country: 'Unknown', // IP geolocation will be added later
+      country: city !== 'Unknown' && country !== 'Unknown' ? `${city}, ${country}` : country,
       browser: ua.browser || 'Unknown',
       device: ua.isMobile ? 'Mobile' : ua.isDesktop ? 'Desktop' : 'Unknown',
       referrer: req.headers.referer || 'Direct'
@@ -222,8 +229,50 @@ const getUserUrls = async (req, res) => {
   }
 };
 
+// @desc    Create multiple short URLs at once
+const shortenBatch = async (req, res) => {
+  try {
+    const { urls } = req.body;
+    if (!urls || !Array.isArray(urls)) {
+      return res.status(400).json({ error: 'An array of originalUrl strings is required' });
+    }
+
+    const createdUrls = [];
+    for (let originalUrl of urls) {
+      if (!originalUrl) continue;
+      
+      let shortCode;
+      let isUnique = false;
+      while (!isUnique) {
+        shortCode = generateShortCode(6);
+        const existingCode = await Url.findOne({ shortCode });
+        if (!existingCode) isUnique = true;
+      }
+
+      const newUrl = new Url({
+        originalUrl,
+        shortCode,
+        createdBy: req.user ? req.user.userId : null
+      });
+
+      await newUrl.save();
+      
+      if (redisClient.isOpen) {
+        await redisClient.setEx(`url:${shortCode}`, 3600, originalUrl);
+      }
+      createdUrls.push(newUrl);
+    }
+
+    res.status(201).json(createdUrls);
+  } catch (error) {
+    console.error('Batch Shorten Error:', error);
+    res.status(500).json({ error: 'Server error during batch shortening' });
+  }
+};
+
 module.exports = {
   shortenUrl,
+  shortenBatch,
   redirectUrl,
   getAnalytics,
   deleteUrl,
